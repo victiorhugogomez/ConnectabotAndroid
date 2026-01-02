@@ -40,6 +40,7 @@ private const val API_URL = "https://api.conectabot.org"
 object ConversacionesState {
     val conversaciones = mutableStateOf<Map<String, JSONObject>>(emptyMap())
 }
+var conversacionAbierta: String? = null
 
 /* =========================================================
    ACTIVITY
@@ -316,6 +317,7 @@ fun ConversacionesScreen(
                                 .padding(4.dp)
                                 .clickable {
                                     seleccionada = numero
+                                    conversacionAbierta = numero
 //                                    val updated = ConversacionesState.conversaciones.value.toMutableMap()
 //                                    updated[numero]?.put("leido",true)
 //                                    ConversacionesState.conversaciones.value = updated
@@ -363,6 +365,7 @@ fun ConversacionesScreen(
                     "←",
                     Modifier.clickable {
                         seleccionada = null
+                        conversacionAbierta = null
                         mensajes = emptyList()
                     }.padding(8.dp),
                     style = MaterialTheme.typography.titleLarge
@@ -621,13 +624,15 @@ fun cargarConversaciones(
 
                     if (cambioFecha) {
                         obj.put("leido", false)
-
+                        Log.d("new json2", obj.toString())
                         // 🔔 Notificar SOLO cuando hay cambio real de fecha
+                        if (conversacionAbierta != numero) {
                         mostrarNotificacion(
                             AppContext.app,
                             numero,
                             obj.optString("ultimoTexto", "Nuevo mensaje")
                         )
+                    }
                     } else {
                         // No cambió la fecha: conservar el estado de leído anterior
                         obj.put("leido", prev.optBoolean("leido", true))
