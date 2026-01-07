@@ -359,18 +359,74 @@ fun ConversacionesScreen(
             }
 
         } else {
+            val statusActual =
+                conversaciones[seleccionada]?.optString("status", "activo") ?: "activo"
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     "←",
-                    Modifier.clickable {
-                        seleccionada = null
-                        conversacionAbierta = null
-                        mensajes = emptyList()
-                    }.padding(8.dp),
+                    Modifier
+                        .clickable {
+                            seleccionada = null
+                            conversacionAbierta = null
+                            mensajes = emptyList()
+                        }
+                        .padding(8.dp),
                     style = MaterialTheme.typography.titleLarge
                 )
+
                 Text(seleccionada!!, fontWeight = FontWeight.Bold)
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Button(
+                    onClick = {
+                        togglePausaConversacion(
+                            token = token,
+                            email = email,
+                            numero = seleccionada!!,
+                            status = statusActual
+                        ) {
+                            cargarConversaciones(token, email) { conversaciones = it }
+                        }
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(end = 6.dp)
+                ) {
+                    Text(
+                        if (statusActual == "pausado") "Reanudar" else "Pausar"
+                    )
+                }
+
+
+                Button(
+                    onClick = {
+                        eliminarConversacion(
+                            token = token,
+                            email = email,
+                            numero = seleccionada!!
+                        ) {
+                            seleccionada = null
+                            mensajes = emptyList()
+                            cargarConversaciones(token, email) { conversaciones = it }
+                        }
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(end = 6.dp)
+                ) {
+                    Text("Eliminar")
+                }
+
+
+                Button(
+                    onClick = {
+                        Log.d("CHAT_TOP", "Boton 3")
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                ) { Text("B3") }
             }
 
             Divider()
@@ -445,6 +501,7 @@ fun ConversacionesScreen(
                 }
             }
         }
+
     }
 }
 
@@ -473,115 +530,76 @@ private fun buildChatRows(mensajes: List<MensajeUI>): List<ChatRow> {
 /* =========================================================
    NETWORK
 ========================================================= */
-/////////////////////////// cargar conversaciones funcional////////////////////////////
-//fun cargarConversaciones(
-//    token: String,
-//    email: String,
-//    onResult: (Map<String, JSONObject>) -> Unit
-//) {
-//    val request = Request.Builder()
-//        .url("$API_URL/api/whatsapp/conversaciones-activas?cliente=$email")
-//        .addHeader("Authorization", "Bearer $token")
-//        .build()
-//
-//    OkHttpClient().newCall(request).enqueue(object : Callback {
-//        override fun onFailure(call: Call, e: IOException) {}
-//        override fun onResponse(call: Call, response: Response) {
-//            val body = response.body?.string() ?: return
-//            if (!response.isSuccessful) return
-//
-//            val json = JSONObject(body)
-//            val map = mutableMapOf<String, JSONObject>()
-//            val keys = json.keys()
-//            while (keys.hasNext()) {
-//                val numero = keys.next()
-//
-////                Log.d("DEBUG_JSON", json.getJSONObject(numero).toString())
-//                val conversacion = ConversacionesState.conversaciones.value[numero]
-//
-//                if (conversacion != null){
-//                    val obj = json.getJSONObject(numero)
-//                    val bufferDate = conversacion.getString("updated_at")
-//                    val resDate = obj.getString("updated_at")
-////                    val leido = obj.optBoolean("leido")
-//                    if (bufferDate.isNotEmpty() && bufferDate == resDate ) {
-//                        val prevLeido = conversacion.optBoolean("leido", true)  //descomentar esto
-//                        obj.put("leido", prevLeido)         //descomentar esto
-//
-//                    } else {
-//                        obj.put("leido", false)
-//                        obj.put("updated_at",resDate)
-//                        Log.d("new json1", obj.toString())
-//                    }
-//                    val updated = ConversacionesState.conversaciones.value.toMutableMap()
-//                    updated[numero] = obj
-//                    ConversacionesState.conversaciones.value = updated
-//
-//                }else{
-//                    val obj = json.getJSONObject(numero)
-//                    obj.put("leido", false)
-//                    Log.d("new json2", obj.toString())
-//                    val updated = ConversacionesState.conversaciones.value.toMutableMap()
-//                    updated[numero] = obj
-//                    ConversacionesState.conversaciones.value = updated
-//
-//                }
-////
-////                val obj = json.getJSONObject(numero)
-////
-////
-////               map[numero] = json.getJSONObject(numero)
-//                ConversacionesState.conversaciones.value[numero]?.let {
-//                    map[numero] = it
-//                }
-//
-//            }
-//            onResult(map)
-//        }
-//    })
-//}
-/////////////////////////// cargar conversaciones funcional////////////////////////////
+fun togglePausaConversacion(
+    token: String,
+    email: String,
+    numero: String,
+    status: String,
+    onDone: () -> Unit
+) {
+    val endpoint = if (status == "pausado") "reanudar" else "pausar"
 
-//fun cargarConversaciones(
-//    token: String,
-//    email: String,
-//    onResult: (Map<String, JSONObject>) -> Unit
-//) {
-//    val request = Request.Builder()
-//        .url("$API_URL/api/whatsapp/conversaciones-activas?cliente=$email")
-//        .addHeader("Authorization", "Bearer $token")
-//        .build()
-//
-//    OkHttpClient().newCall(request).enqueue(object : Callback {
-//        override fun onFailure(call: Call, e: IOException) {}
-//
-//        override fun onResponse(call: Call, response: Response) {
-//            if (!response.isSuccessful) return
-//            val body = response.body?.string() ?: return
-//
-//            val json = JSONObject(body)
-//            val map = mutableMapOf<String, JSONObject>()
-//
-//            val keys = json.keys()
-//            while (keys.hasNext()) {
-//                val numero = keys.next()
-//                val obj = json.getJSONObject(numero)
-//
-//                val prev = ConversacionesState.conversaciones.value[numero]
-//                val prevDate = prev?.optString("updated_at", "")
-//                val newDate = obj.optString("updated_at", "")
-//
-//                val leido = prev != null && prevDate == newDate && prev.optBoolean("leido", true)
-//                obj.put("leido", leido)
-//
-//
-//                map[numero] = obj
-//            }
-//
-//            onResult(map)
-//        }
-//    })
-//}
+    val body = JSONObject()
+        .put("telefono", numero)
+        .put("cliente", email)
+        .toString()
+        .toRequestBody("application/json".toMediaType())
+
+    val request = Request.Builder()
+        .url("$API_URL/api/core/$endpoint")
+        .addHeader("Authorization", "Bearer $token")
+        .post(body)
+        .build()
+
+    OkHttpClient().newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {}
+        override fun onResponse(call: Call, response: Response) {
+            onDone()
+        }
+    })
+}
+
+fun eliminarConversacion(
+    token: String,
+    email: String,
+    numero: String,
+    onDone: () -> Unit
+) {
+    // 1️⃣ DELETE conversación activa
+    val deleteRequest = Request.Builder()
+        .url("$API_URL/api/whatsapp/conversaciones-activas/$email/$numero")
+        .addHeader("Authorization", "Bearer $token")
+        .delete()
+        .build()
+
+    OkHttpClient().newCall(deleteRequest).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {}
+
+        override fun onResponse(call: Call, response: Response) {
+
+            // 2️⃣ core eliminar-conversacion
+            val body = JSONObject()
+                .put("telefono", numero)
+                .toString()
+                .toRequestBody("application/json".toMediaType())
+
+            val coreRequest = Request.Builder()
+                .url("$API_URL/api/core/eliminar-conversacion")
+                .addHeader("Authorization", "Bearer $token")
+                .post(body)
+                .build()
+
+            OkHttpClient().newCall(coreRequest).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {}
+                override fun onResponse(call: Call, response: Response) {
+                    onDone()
+                }
+            })
+        }
+    })
+}
+
+
 fun cargarConversaciones(
     token: String,
     email: String,
@@ -641,6 +659,8 @@ fun cargarConversaciones(
 
                 updatedState[numero] = obj
             }
+            val backendKeys = json.keys().asSequence().toSet()
+            updatedState.keys.retainAll(backendKeys)
 
             // Guardar el estado para que en el siguiente refresh ya no "re-dispare" la notificación
             val ordered = updatedState.entries
