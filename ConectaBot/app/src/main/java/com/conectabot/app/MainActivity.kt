@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -752,13 +753,19 @@ fun ConversacionesScreen(
                     }
                 )
             }
+
+
             if (mostrarModalMarcador) {
                 AlertDialog(
                     onDismissRequest = { mostrarModalMarcador = false },
                     title = { Text("Seleccionar marcador") },
                     text = {
-                        Column {
-                            marcadoresDisponibles.forEach { marcador ->
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 320.dp) // 👈 SCROLL SOLO AQUÍ
+                        ) {
+                            items(marcadoresDisponibles) { marcador ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -788,6 +795,10 @@ fun ConversacionesScreen(
                     }
                 )
             }
+
+
+
+
             if (mostrarModalGestionMarcadores) {
                 AlertDialog(
                     onDismissRequest = { mostrarModalGestionMarcadores = false },
@@ -795,44 +806,50 @@ fun ConversacionesScreen(
                     text = {
                         Column {
 
-                            // 🔹 MARCADORES EXISTENTES
-                            marcadoresDisponibles.forEach { marcador ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
+                            // 🔹 LISTA SCROLLABLE DE MARCADORES
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 260.dp) // 👈 SOLO ESTA PARTE SCROLLEA
+                            ) {
+                                items(marcadoresDisponibles) { marcador ->
+                                    Row(
                                         modifier = Modifier
-                                            .size(14.dp)
-                                            .background(marcador.color, shape = CircleShape)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        marcador.nombre,
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    IconButton(
-                                        onClick = {
-                                            marcadoresDisponibles.remove(marcador)
-
-                                            // 🔥 limpiar conversaciones que usaban este marcador
-                                            marcadoresPorConversacion
-                                                .filterValues { it.id == marcador.id }
-                                                .keys
-                                                .forEach { marcadoresPorConversacion.remove(it) }
-                                        }
+                                            .fillMaxWidth()
+                                            .padding(vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text("✕", color = Color.Red)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .background(marcador.color, shape = CircleShape)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            marcador.nombre,
+                                            modifier = Modifier.weight(1f)
+                                        )
+
+                                        IconButton(
+                                            onClick = {
+                                                marcadoresDisponibles.remove(marcador)
+
+                                                // limpiar conversaciones que lo usaban
+                                                marcadoresPorConversacion
+                                                    .filterValues { it.id == marcador.id }
+                                                    .keys
+                                                    .forEach { marcadoresPorConversacion.remove(it) }
+                                            }
+                                        ) {
+                                            Text("✕", color = Color.Red)
+                                        }
                                     }
                                 }
                             }
 
-                            Divider(Modifier.padding(vertical = 8.dp))
+                            Divider(Modifier.padding(vertical = 10.dp))
 
-                            // 🔹 NUEVO MARCADOR
+                            // 🔹 ZONA FIJA — NUEVO MARCADOR
                             Text("Nuevo marcador", fontWeight = FontWeight.Bold)
 
                             Spacer(Modifier.height(6.dp))
@@ -843,7 +860,7 @@ fun ConversacionesScreen(
                                 placeholder = { Text("Nombre") }
                             )
 
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(8.dp))
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Color:")
@@ -857,30 +874,37 @@ fun ConversacionesScreen(
 
                             Spacer(Modifier.height(6.dp))
 
-                            Row {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
                                 listOf(
-                                    Color(0xFFFFC107), // Amarillo
-                                    Color(0xFF4CAF50), // Verde
-                                    Color(0xFF2196F3), // Azul
-                                    Color(0xFFF44336), // Rojo
-                                    Color(0xFF9C27B0), // Morado
-                                    Color(0xFF00BCD4), // Cyan
-                                    Color(0xFF795548), // Café
-                                    Color(0xFF607D8B), // Gris azulado
-                                    Color(0xFFFF5722)  // Naranja
+                                    Color(0xFFFFC107),
+                                    Color(0xFF4CAF50),
+                                    Color(0xFF2196F3),
+                                    Color(0xFFF44336),
+                                    Color(0xFF9C27B0),
+                                    Color(0xFF00BCD4),
+                                    Color(0xFF795548),
+                                    Color(0xFF607D8B),
+                                    Color(0xFFFF5722)
                                 ).forEach { color ->
                                     Box(
                                         modifier = Modifier
-                                            .size(20.dp)
+                                            .size(22.dp)
                                             .background(color, shape = CircleShape)
+                                            .border(
+                                                width = if (nuevoMarcadorColor == color) 2.dp else 0.dp,
+                                                color = Color.Black,
+                                                shape = CircleShape
+                                            )
                                             .clickable { nuevoMarcadorColor = color }
-                                            .padding(2.dp)
                                     )
-                                    Spacer(Modifier.width(6.dp))
                                 }
                             }
                         }
-                    },
+                    }
+                    ,
                     confirmButton = {
                         Button(
                             onClick = {
