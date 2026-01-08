@@ -232,6 +232,11 @@ data class MensajeUI(
     val esCliente: Boolean,
     val estado: String? = null
 )
+data class Marcador(
+    val id: String,
+    val nombre: String,
+    val color: Color
+)
 
 data class RespuestaRapida(
     val id: String,
@@ -269,6 +274,19 @@ fun ConversacionesScreen(
             RespuestaRapida("2", "Horario", "Nuestro horario es de lunes a viernes de 9 a 6."),
             RespuestaRapida("3", "Precio", "Con gusto te comparto nuestros precios.")
         )
+    }
+    val marcadoresDisponibles = remember {
+        mutableStateListOf(
+            Marcador("espera", "En espera", Color(0xFFFFC107)),
+            Marcador("entregado", "Entregado", Color(0xFF4CAF50)),
+            Marcador("cerrado", "Venta cerrada", Color(0xFF2196F3))
+        )
+    }
+    var mostrarModalGestionMarcadores by remember { mutableStateOf(false) }
+    var nuevoMarcadorNombre by remember { mutableStateOf("") }
+    var nuevoMarcadorColor by remember { mutableStateOf(Color.Gray) }
+    val marcadoresPorConversacion = remember {
+        mutableStateMapOf<String, Marcador>()
     }
     val rapidasFiltradas = respuestasRapidas.filter {
         it.titulo.lowercase().contains(filtroRapida) ||
@@ -405,6 +423,15 @@ fun ConversacionesScreen(
                                         overflow = TextOverflow.Ellipsis    // 👈 CLAVE
                                     )
                                 }
+                                marcadoresPorConversacion[numero]?.let { marcador ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .background(marcador.color, shape = CircleShape)
+                                            .padding(end = 6.dp)
+                                    )
+                                }
+
                                 if (status == "pausado") {
                                     Text(
                                         "||",
@@ -433,6 +460,8 @@ fun ConversacionesScreen(
         }else {
             val statusActual =
                 conversaciones[seleccionada]?.optString("status", "activo") ?: "activo"
+            var mostrarMenuAcciones by remember { mutableStateOf(false) }
+            var mostrarModalMarcador by remember { mutableStateOf(false) }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -489,10 +518,46 @@ fun ConversacionesScreen(
                     Text("Eliminar")
                 }
 
-                Button(
-                    onClick = { Log.d("CHAT_TOP", "Boton 3") },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                ) { Text("B3") }
+                Box {
+                    Button(
+                        onClick = { mostrarMenuAcciones = true },
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text("+", fontWeight = FontWeight.Bold)
+                    }
+
+                    DropdownMenu(
+                        expanded = mostrarMenuAcciones,
+                        onDismissRequest = { mostrarMenuAcciones = false }
+                    ) {
+
+                        DropdownMenuItem(
+                            text = { Text("Agregar marcador") },
+                            onClick = {
+                                mostrarMenuAcciones = false
+                                mostrarModalMarcador = true
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("Gestionar marcadores") },
+                            onClick = {
+                                mostrarMenuAcciones = false
+                                mostrarModalGestionMarcadores = true
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("Cerrar venta") },
+                            onClick = {
+                                mostrarMenuAcciones = false
+                                Log.d("CHAT_ACTION", "Cerrar venta de $seleccionada")
+                            }
+                        )
+                    }
+                }
+
+
             }
 
             Divider()
@@ -687,6 +752,163 @@ fun ConversacionesScreen(
                     }
                 )
             }
+            if (mostrarModalMarcador) {
+                AlertDialog(
+                    onDismissRequest = { mostrarModalMarcador = false },
+                    title = { Text("Seleccionar marcador") },
+                    text = {
+                        Column {
+                            marcadoresDisponibles.forEach { marcador ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            marcadoresPorConversacion[seleccionada!!] = marcador
+                                            mostrarModalMarcador = false
+                                        }
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .background(marcador.color, shape = CircleShape)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(marcador.nombre)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {},
+                    dismissButton = {
+                        TextButton(onClick = { mostrarModalMarcador = false }) {
+                            Text("Cancelar")
+                        }
+                    }
+                )
+            }
+            if (mostrarModalGestionMarcadores) {
+                AlertDialog(
+                    onDismissRequest = { mostrarModalGestionMarcadores = false },
+                    title = { Text("Gestionar marcadores") },
+                    text = {
+                        Column {
+
+                            // 🔹 MARCADORES EXISTENTES
+                            marcadoresDisponibles.forEach { marcador ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .background(marcador.color, shape = CircleShape)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        marcador.nombre,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            marcadoresDisponibles.remove(marcador)
+
+                                            // 🔥 limpiar conversaciones que usaban este marcador
+                                            marcadoresPorConversacion
+                                                .filterValues { it.id == marcador.id }
+                                                .keys
+                                                .forEach { marcadoresPorConversacion.remove(it) }
+                                        }
+                                    ) {
+                                        Text("✕", color = Color.Red)
+                                    }
+                                }
+                            }
+
+                            Divider(Modifier.padding(vertical = 8.dp))
+
+                            // 🔹 NUEVO MARCADOR
+                            Text("Nuevo marcador", fontWeight = FontWeight.Bold)
+
+                            Spacer(Modifier.height(6.dp))
+
+                            TextField(
+                                value = nuevoMarcadorNombre,
+                                onValueChange = { nuevoMarcadorNombre = it },
+                                placeholder = { Text("Nombre") }
+                            )
+
+                            Spacer(Modifier.height(6.dp))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Color:")
+                                Spacer(Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .background(nuevoMarcadorColor, shape = CircleShape)
+                                )
+                            }
+
+                            Spacer(Modifier.height(6.dp))
+
+                            Row {
+                                listOf(
+                                    Color(0xFFFFC107), // Amarillo
+                                    Color(0xFF4CAF50), // Verde
+                                    Color(0xFF2196F3), // Azul
+                                    Color(0xFFF44336), // Rojo
+                                    Color(0xFF9C27B0), // Morado
+                                    Color(0xFF00BCD4), // Cyan
+                                    Color(0xFF795548), // Café
+                                    Color(0xFF607D8B), // Gris azulado
+                                    Color(0xFFFF5722)  // Naranja
+                                ).forEach { color ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .background(color, shape = CircleShape)
+                                            .clickable { nuevoMarcadorColor = color }
+                                            .padding(2.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (nuevoMarcadorNombre.isNotBlank()) {
+                                    marcadoresDisponibles.add(
+                                        Marcador(
+                                            id = UUID.randomUUID().toString(),
+                                            nombre = nuevoMarcadorNombre,
+                                            color = nuevoMarcadorColor
+                                        )
+                                    )
+                                    nuevoMarcadorNombre = ""
+                                    nuevoMarcadorColor = Color.Gray
+                                }
+                            }
+                        ) {
+                            Text("Agregar")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { mostrarModalGestionMarcadores = false }) {
+                            Text("Cerrar")
+                        }
+                    }
+                )
+            }
+
+
         }
 
 
