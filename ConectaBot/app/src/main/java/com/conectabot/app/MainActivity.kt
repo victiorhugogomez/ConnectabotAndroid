@@ -11,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
@@ -232,6 +233,12 @@ data class MensajeUI(
     val estado: String? = null
 )
 
+data class RespuestaRapida(
+    val id: String,
+    val titulo: String,
+    val texto: String
+)
+
 sealed class ChatRow {
     data class FechaHeader(val texto: String) : ChatRow()
     data class MensajeItem(val msg: MensajeUI) : ChatRow()
@@ -251,6 +258,22 @@ fun ConversacionesScreen(
     var seleccionada by remember { mutableStateOf<String?>(null) }
     var mensajes by remember { mutableStateOf(listOf<MensajeUI>()) }
     var mensajeNuevo by remember { mutableStateOf("") }
+    var mostrarModalRapida by remember { mutableStateOf(false) }
+    var nuevaTitulo by remember { mutableStateOf("") }
+    var nuevaTexto by remember { mutableStateOf("") }
+    val mostrarRapidas = mensajeNuevo.startsWith("/")
+    val filtroRapida = mensajeNuevo.drop(1).lowercase()
+    val respuestasRapidas = remember {
+        mutableStateListOf(
+            RespuestaRapida("1", "Saludo", "Hola 👋 ¿en qué puedo ayudarte?"),
+            RespuestaRapida("2", "Horario", "Nuestro horario es de lunes a viernes de 9 a 6."),
+            RespuestaRapida("3", "Precio", "Con gusto te comparto nuestros precios.")
+        )
+    }
+    val rapidasFiltradas = respuestasRapidas.filter {
+        it.titulo.lowercase().contains(filtroRapida) ||
+                it.texto.lowercase().contains(filtroRapida)
+    }
 
     val listState = rememberLazyListState()
 
@@ -407,7 +430,7 @@ fun ConversacionesScreen(
                 }
             }
 
-        } else {
+        }else {
             val statusActual =
                 conversaciones[seleccionada]?.optString("status", "activo") ?: "activo"
 
@@ -445,11 +468,8 @@ fun ConversacionesScreen(
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                     modifier = Modifier.padding(end = 6.dp)
                 ) {
-                    Text(
-                        if (statusActual == "pausado") "Reanudar" else "Pausar"
-                    )
+                    Text(if (statusActual == "pausado") "Reanudar" else "Pausar")
                 }
-
 
                 Button(
                     onClick = {
@@ -469,11 +489,8 @@ fun ConversacionesScreen(
                     Text("Eliminar")
                 }
 
-
                 Button(
-                    onClick = {
-                        Log.d("CHAT_TOP", "Boton 3")
-                    },
+                    onClick = { Log.d("CHAT_TOP", "Boton 3") },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                 ) { Text("B3") }
             }
@@ -538,6 +555,70 @@ fun ConversacionesScreen(
                 }
             }
 
+            if (mostrarRapidas) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    elevation = CardDefaults.cardElevation(6.dp)
+                ) {
+
+                    Column {
+
+                        rapidasFiltradas.forEach { rapida ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        mensajeNuevo = rapida.texto
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(rapida.titulo, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        rapida.texto,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        respuestasRapidas.remove(rapida)
+                                    }
+                                ) {
+                                    Text(
+                                        "✕",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+
+                            Divider()
+                        }
+
+
+
+
+
+                        Text(
+                            "+ Crear respuesta rápida",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { mostrarModalRapida = true }
+                                .padding(12.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextField(
                     value = mensajeNuevo,
@@ -558,7 +639,56 @@ fun ConversacionesScreen(
                     Text("Enviar")
                 }
             }
+
+            // 🔥 AQUÍ VA LA PARTE 2 (MODAL)
+            if (mostrarModalRapida) {
+                AlertDialog(
+                    onDismissRequest = { mostrarModalRapida = false },
+                    title = { Text("Nueva respuesta rápida") },
+                    text = {
+                        Column {
+                            TextField(
+                                value = nuevaTitulo,
+                                onValueChange = { nuevaTitulo = it },
+                                placeholder = { Text("Título (ej. Saludo)") }
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            TextField(
+                                value = nuevaTexto,
+                                onValueChange = { nuevaTexto = it },
+                                placeholder = { Text("Texto de la respuesta") }
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (nuevaTitulo.isNotBlank() && nuevaTexto.isNotBlank()) {
+                                    respuestasRapidas.add(
+                                        RespuestaRapida(
+                                            id = UUID.randomUUID().toString(),
+                                            titulo = nuevaTitulo,
+                                            texto = nuevaTexto
+                                        )
+                                    )
+                                    nuevaTitulo = ""
+                                    nuevaTexto = ""
+                                    mostrarModalRapida = false
+                                }
+                            }
+                        ) {
+                            Text("Guardar")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { mostrarModalRapida = false }) {
+                            Text("Cancelar")
+                        }
+                    }
+                )
+            }
         }
+
 
     }
 }
