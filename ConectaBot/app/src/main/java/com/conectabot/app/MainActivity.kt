@@ -194,6 +194,24 @@ fun mostrarNotificacion(context: Context, numero: String, texto: String) {
 ========================================================= */
 
 @Composable
+fun EstadoIcono(estado: String?) {
+    when (estado) {
+        "enviado" -> {
+            Text("✓", fontSize = MaterialTheme.typography.labelSmall.fontSize)
+        }
+        "entregado" -> {
+            Text("✓✓", fontSize = MaterialTheme.typography.labelSmall.fontSize)
+        }
+        "leido" -> {
+            Text(
+                "✓✓",
+                color = Color(0xFF0B6EFD), // azul WhatsApp
+                fontSize = MaterialTheme.typography.labelSmall.fontSize
+            )
+        }
+    }
+}
+@Composable
 fun LoginScreen(onGoogleClick: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Button(onClick = onGoogleClick) {
@@ -209,7 +227,8 @@ fun LoginScreen(onGoogleClick: () -> Unit) {
 data class MensajeUI(
     val texto: String,
     val fechaRaw: String,
-    val esCliente: Boolean
+    val esCliente: Boolean,
+    val estado: String? = null
 )
 
 sealed class ChatRow {
@@ -466,12 +485,21 @@ fun ConversacionesScreen(
                                     Column(Modifier.padding(10.dp)) {
                                         Text(msg.texto)
                                         Spacer(Modifier.height(4.dp))
-                                        Text(
-                                            formatearHora(msg.fechaRaw),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color.Gray,
-                                            modifier = Modifier.align(Alignment.End)
-                                        )
+                                        Row(
+                                            modifier = Modifier.align(Alignment.End),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                formatearHora(msg.fechaRaw),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color.Gray
+                                            )
+
+                                            if (!msg.esCliente) {
+                                                Spacer(Modifier.width(4.dp))
+                                                EstadoIcono(msg.estado)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -705,12 +733,13 @@ fun cargarMensajes(
                 val fecha = obj.optString("creado_en")
                     .ifBlank { obj.optString("created_at") }
                     .ifBlank { obj.optString("timestamp") }
-
+                val estado = obj.optString("estado", "enviado")
                 list.add(
                     MensajeUI(
                         texto = obj.optString("mensaje"),
                         fechaRaw = fecha,
-                        esCliente = obj.optInt("es_cliente", 1) == 1
+                        esCliente = obj.optInt("es_cliente", 1) == 1,
+                        estado = estado
                     )
                 )
             }
