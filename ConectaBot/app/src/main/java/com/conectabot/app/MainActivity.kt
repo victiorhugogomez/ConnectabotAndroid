@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -309,6 +310,7 @@ fun ConversacionesScreen(
                 conversaciones.forEach { (numero, datos) ->
                     val nombre = datos.optString("nombre", numero)
                     val ultimoTexto = datos.optString("ultimoTexto", "-")
+                    val status = datos.optString("status", "activo")
 
 //                    item {
 //                        Card(
@@ -352,12 +354,40 @@ fun ConversacionesScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
 
-                                Column(Modifier.weight(1f)) {
-                                    Text(nombre, fontWeight = FontWeight.Bold)
+//                                Column(Modifier.weight(1f)) {
+//                                    Text(nombre, fontWeight = FontWeight.Bold)
+//                                    Text(
+//                                        ultimoTexto,
+//                                        style = MaterialTheme.typography.bodySmall,
+//                                        color = Color.Gray
+//                                    )
+//                                }
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)   // 🔒 altura fija del contenido
+                                ) {
+                                    Text(
+                                        nombre,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
                                     Text(
                                         ultimoTexto,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color.Gray
+                                        color = Color.Gray,
+                                        maxLines = 1,                       // 👈 CLAVE
+                                        overflow = TextOverflow.Ellipsis    // 👈 CLAVE
+                                    )
+                                }
+                                if (status == "pausado") {
+                                    Text(
+                                        "||",
+                                        color = Color.Gray,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(start = 6.dp)
                                     )
                                 }
                                 val leido = datos.optBoolean("leido", true)
