@@ -260,6 +260,9 @@ fun ConversacionesScreen(
     email: String,
     onLogout: () -> Unit
 ) {
+    var mostrarModalCerrarVenta by remember { mutableStateOf(false) }
+    var montoVenta by remember { mutableStateOf("") }
+    var enviandoVenta by remember { mutableStateOf(false) }
     var conversaciones by remember { mutableStateOf<Map<String, JSONObject>>(emptyMap()) }
     var seleccionada by remember { mutableStateOf<String?>(null) }
     var mensajes by remember { mutableStateOf(listOf<MensajeUI>()) }
@@ -552,7 +555,7 @@ fun ConversacionesScreen(
                             text = { Text("Cerrar venta") },
                             onClick = {
                                 mostrarMenuAcciones = false
-                                Log.d("CHAT_ACTION", "Cerrar venta de $seleccionada")
+                                mostrarModalCerrarVenta = true
                             }
                         )
                     }
@@ -931,6 +934,72 @@ fun ConversacionesScreen(
                     }
                 )
             }
+            if (mostrarModalCerrarVenta) {
+                AlertDialog(
+                    onDismissRequest = {
+                        if (!enviandoVenta) mostrarModalCerrarVenta = false
+                    },
+                    title = { Text("Registrar venta") },
+                    text = {
+                        Column {
+                            Text("Ingresa el monto de la venta")
+
+                            Spacer(Modifier.height(8.dp))
+
+                            TextField(
+                                value = montoVenta,
+                                onValueChange = {
+                                    montoVenta = it.filter { c -> c.isDigit() || c == '.' }
+                                },
+                                placeholder = { Text("Ej. 850") },
+                                singleLine = true
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            enabled = montoVenta.isNotBlank() && !enviandoVenta,
+                            onClick = {
+                                enviandoVenta = true
+
+                                registrarVenta(
+                                    token = token,
+                                    numero = seleccionada!!,
+                                    monto = montoVenta
+                                ) {
+                                    enviandoVenta = false
+                                    montoVenta = ""
+                                    mostrarModalCerrarVenta = false
+
+                                    // opcional: marcar conversación como cerrada
+                                    togglePausaConversacion(
+                                        token = token,
+                                        email = email,
+                                        numero = seleccionada!!,
+                                        status = "activo"
+                                    ) {
+                                        cargarConversaciones(token, email) { conversaciones = it }
+                                    }
+                                }
+                            }
+                        ) {
+                            Text(if (enviandoVenta) "Enviando..." else "Confirmar")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            enabled = !enviandoVenta,
+                            onClick = {
+                                mostrarModalCerrarVenta = false
+                                montoVenta = ""
+                            }
+                        ) {
+                            Text("Cancelar")
+                        }
+                    }
+                )
+            }
+
 
 
         }
@@ -938,6 +1007,38 @@ fun ConversacionesScreen(
 
     }
 }
+
+fun registrarVenta(
+    token: String,
+    numero: String,
+    monto: String,
+    onDone: () -> Unit
+) {
+    val body = JSONObject()
+        .put("numero", numero)
+        .put("monto", monto.toDouble())
+        .toString()
+        .toRequestBody("application/json".toMediaType())
+
+    val request = Request.Builder()
+        .url("$API_URL/api/whatsapp/purchase")
+        .addHeader("Authorization", "Bearer $token")
+        .post(body)
+        .build()
+
+    OkHttpClient().newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            Log.e("PURCHASE", "Error enviando venta", e)
+            onDone()
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            Log.d("PURCHASE", "Venta registrada: ${response.code}")
+            onDone()
+        }
+    })
+}
+
 
 /* =========================================================
    BUILD CHAT ROWS
