@@ -38,6 +38,9 @@ import org.json.JSONObject
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import android.widget.Toast
 
 private const val API_URL = "https://api.conectabot.org"
 object ConversacionesState {
@@ -594,11 +597,31 @@ fun ConversacionesScreen(
                             val bg = if (msg.esCliente) Color(0xFFE0E0E0) else Color(0xFFDCF8C6)
 
                             Column(Modifier.fillMaxWidth(), horizontalAlignment = align) {
+//                                Card(
+//                                    colors = CardDefaults.cardColors(containerColor = bg),
+//                                    modifier = Modifier.padding(vertical = 4.dp)
+//                                ) {
+                                val clipboardManager = LocalClipboardManager.current
+                                val context = AppContext.app   // ya lo usas para notificaciones
+
                                 Card(
                                     colors = CardDefaults.cardColors(containerColor = bg),
-                                    modifier = Modifier.padding(vertical = 4.dp)
+                                    modifier = Modifier
+                                        .padding(vertical = 4.dp)
+                                        .combinedClickable(
+                                            onClick = {
+                                                // click normal → no hace nada (puedes abrir menú luego si quieres)
+                                            },
+                                            onLongClick = {
+                                                clipboardManager.setText(AnnotatedString(msg.texto))
+                                                Toast
+                                                    .makeText(context, "Mensaje copiado", Toast.LENGTH_SHORT)
+                                                    .show()
+                                            }
+                                        )
                                 ) {
-                                    Column(Modifier.padding(10.dp)) {
+
+                                Column(Modifier.padding(10.dp)) {
                                         Text(msg.texto)
                                         Spacer(Modifier.height(4.dp))
                                         Row(
